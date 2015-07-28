@@ -1,0 +1,17 @@
+{
+  "name": "tweet-pool-browser",
+  "version": "0.0.1",
+  "description": "Step 1: retrieves tweets",
+  "main": "gather.js",
+  "dependencies": {
+    "chalk": "^1.1.0",
+    "oauth": "^0.9.13"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
