@@ -50,15 +50,24 @@ function getTweets(run, query) {
         credentials.token,
         credentials.token_secret,
         function responseCallback(error, data, response) {
+            var file_nb = pool_nb(run);
             if (error) {
                 console.error(run + ': ' + chalk.red.bgWhite(inspect(error)));
             } else {
+                // Store raw response
+                writeTweets(data, raw_file(file_nb));
                 data = JSON.parse(data);
+                // Get next query (antechronological)
                 query = data.search_metadata.next_results;
                 data = filterData(data);
-                writeTweets(JSON.stringify(data, null, 4), run);
+                // Store relevant data
+                writeTweets(
+                    JSON.stringify(data, null, 4),
+                    pool_file(file_nb)
+                );
+
                 if (run) {
-                    getTweets(--run, query)
+                    getTweets(--run, query);
                 }
             }
         }
@@ -80,7 +89,8 @@ function filterData(data) {
         tweets.push({
             "id": data.statuses[i].id_str,
             "created_at": data.statuses[i].created_at,
-            "text": data.statuses[i].text
+            "text": data.statuses[i].text,
+            "entities": data.statuses[i].entities
         });
     }
 
@@ -90,16 +100,14 @@ function filterData(data) {
 /**
  * Write tweets to pool file
  * @param str tweets
- * @param int file_nb
+ * @param str filename
  */
-function writeTweets(tweets, file_nb) {
-    var pool_name = pool_nb(file_nb);
-    fs.writeFile(pool_file(pool_name), tweets, function (error) {
+function writeTweets(tweets, filename) {
+    fs.writeFile(filename, tweets, function (error) {
         if (error) {
-            console.error('Could not write pool file: ', chalk.red.bgWhite(inspect(error)));
-            return;
+            console.error(chalk.red.bgWhite('Could not write `' + filename + '`: ' + inspect(error)));
         } else {
-            console.log(chalk.green('Pool file `' + pool_name + '` written'));
+            console.log(chalk.green('`' + filename + '` written'));
         }
     });
 }
