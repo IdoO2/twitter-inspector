@@ -1,13 +1,31 @@
 // Librairies
 var OAuth = require('oauth'),
-    chalk = require('chalk');
+    chalk = require('chalk'),
+    fs = require('fs'),
+    inspect = require('util').inspect;
 
 // App modules
 var credentials = require('./local-data').credentials;
 
-// Constants
-var search_url = 'https://api.twitter.com/1.1/search/tweets.json?q=',
-    search_string = '%23Regionales2015';
+// Work vars & constants
+var base_url = 'https://api.twitter.com/1.1/search/tweets.json',
+    initial_query = [
+        '?q=',
+        encodeURIComponent('#regionales2015 -filter:images -filter:links -filter:retweets'),
+        '&result_type=recent',
+        '&lang=fr',
+        '&count=100'
+    ].join(''),
+    pool_file = function (f_nb) {
+        return 'pool' + f_nb + '.json';
+    },
+    raw_file = function (f_nb) {
+        return 'raw' + f_nb + '.json';
+    },
+    pool_nb = function (reverse_counter) {
+        return ("0000" + (poll_count - reverse_counter + 1)).slice(-5)
+    },
+    poll_count = 1;
 
 // Initialise authorised connection
 var oauth = new OAuth.OAuth(
@@ -20,16 +38,71 @@ var oauth = new OAuth.OAuth(
     'HMAC-SHA1'
 );
 
-// Perform request
-oauth.get(
-    search_url + search_string,
-    credentials.token,
-    credentials.token_secret,
-    function (error, data, response){
-        if (error) {
-            console.error(chalk.red.bgWhite(error));
-        } else {
-            console.log(chalk.inverse(require('util').inspect(data)));
+/**
+ * Retrieve tweets from the API and write them to file
+ * Calls itself for a set run count
+ * @param int run Number of runs left
+ * @param str next_query Twitter-returned query to get previous tweets
+ */
+function getTweets(run, query) {
+    oauth.get(
+        base_url + query,
+        credentials.token,
+        credentials.token_secret,
+        function responseCallback(error, data, response) {
+            if (error) {
+                console.error(run + ': ' + chalk.red.bgWhite(inspect(error)));
+            } else {
+                data = JSON.parse(data);
+                query = data.search_metadata.next_results;
+                data = filterData(data);
+                writeTweets(JSON.stringify(data, null, 4), run);
+                if (run) {
+                    getTweets(--run, query)
+                }
+            }
         }
+    );
+}
+
+/**
+ * Return only relevant info from tweet data
+ * @param JSON data
+ * @return JSON
+ */
+function filterData(data) {
+    var tweets = [],
+        tlen = 0,
+        i = 0;
+    tlen = data.statuses.length;
+
+    for (; i < tlen; i++) {
+        tweets.push({
+            "id": data.statuses[i].id_str,
+            "created_at": data.statuses[i].created_at,
+            "text": data.statuses[i].text
+        });
     }
-);
+
+    return tweets;
+}
+
+/**
+ * Write tweets to pool file
+ * @param str tweets
+ * @param int file_nb
+ */
+function writeTweets(tweets, file_nb) {
+    var pool_name = pool_nb(file_nb);
+    fs.writeFile(pool_file(pool_name), tweets, function (error) {
+        if (error) {
+            console.error('Could not write pool file: ', chalk.red.bgWhite(inspect(error)));
+            return;
+        } else {
+            console.log(chalk.green('Pool file `' + pool_name + '` written'));
+        }
+    });
+}
+
+// Run
+getTweets(poll_count, initial_query)
