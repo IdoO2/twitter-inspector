@@ -4,26 +4,12 @@ var OAuth = require('oauth'),
     fs = require('fs'),
     inspect = require('util').inspect;
 
-// File count, i.e. where to start writing on nth call
-var start_point = (function () {
-    var pool_regex = /^pool/;
-    return fs.readdirSync('.').reduce(function (counter, filename) {
-        return pool_regex.test(filename) + counter;
-    }, 1);
-}());
-
 // App modules
 var credentials = require('./local-data').credentials;
 
 // Work vars & constants
 var base_url = 'https://api.twitter.com/1.1/search/tweets.json',
-    initial_query = [
-        '?q=',
-        encodeURIComponent('#regionales2015 -filter:images -filter:links -filter:retweets'),
-        '&result_type=recent',
-        '&lang=fr',
-        '&count=100'
-    ].join(''),
+    initial_query = '',
     next_poll_start_file = 'next_set.txt',
     pool_file = function (f_nb) {
         return 'pool' + f_nb + '.json';
@@ -36,6 +22,28 @@ var base_url = 'https://api.twitter.com/1.1/search/tweets.json',
     },
     // Desired run count
     max = 0;
+
+// File count, i.e. where to start writing on nth call
+var start_point = (function () {
+    var pool_regex = /^pool/;
+    return fs.readdirSync('.').reduce(function (counter, filename) {
+        return pool_regex.test(filename) + counter;
+    }, 1);
+}());
+
+// Initial request URL; on first call, default query
+// On subsequent calls, the stored next URL
+try {
+    initial_query = fs.readFileSync(next_poll_start_file, {encoding: 'utf-8'});
+} catch (e) {
+    initial_query = [
+        '?q=',
+        encodeURIComponent('#regionales2015 -filter:images -filter:links -filter:retweets'),
+        '&result_type=recent',
+        '&lang=fr',
+        '&count=100'
+    ].join('');
+}
 
 // Initialise authorised connection
 var oauth = new OAuth.OAuth(
@@ -56,6 +64,7 @@ var oauth = new OAuth.OAuth(
  */
 function getTweets(run, query) {
     var refresh_url = '';
+
     query = (query) ? query : initial_query;
 
     // On first run, set max requests
