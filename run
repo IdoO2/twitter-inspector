@@ -1,0 +1,11 @@
+#!/bin/node
+
+var gather = require('./gather');
+
+var run_counts = 4;
+
+if (process.argv.length > 2) {
+    run_counts = process.argv[2];
+}
+
+gather(run_counts);
