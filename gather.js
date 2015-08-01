@@ -4,6 +4,14 @@ var OAuth = require('oauth'),
     fs = require('fs'),
     inspect = require('util').inspect;
 
+// File count, i.e. where to start writing on nth call
+var start_point = (function () {
+    var pool_regex = /^pool/;
+    return fs.readdirSync('.').reduce(function (counter, filename) {
+        return pool_regex.test(filename) + counter;
+    }, 1);
+}());
+
 // App modules
 var credentials = require('./local-data').credentials;
 
@@ -24,7 +32,7 @@ var base_url = 'https://api.twitter.com/1.1/search/tweets.json',
         return 'raw' + f_nb + '.json';
     },
     pool_nb = function (counter) {
-        return ("0000" + (max - counter + 1)).slice(-5)
+        return ("0000" + (max - counter + start_point)).slice(-5)
     },
     // Desired run count
     max = 0;
