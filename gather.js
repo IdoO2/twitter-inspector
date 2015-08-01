@@ -23,11 +23,11 @@ var base_url = 'https://api.twitter.com/1.1/search/tweets.json',
     raw_file = function (f_nb) {
         return 'raw' + f_nb + '.json';
     },
-    pool_nb = function (reverse_counter) {
-        return ("0000" + (poll_count - reverse_counter + 1)).slice(-5)
+    pool_nb = function (counter) {
+        return ("0000" + (max - counter + 1)).slice(-5)
     },
-    // Desired runs is +1
-    poll_count = -1;
+    // Desired run count
+    max = 0;
 
 // Initialise authorised connection
 var oauth = new OAuth.OAuth(
@@ -48,8 +48,13 @@ var oauth = new OAuth.OAuth(
  */
 function getTweets(run, query) {
     var refresh_url = '';
-    poll_count = (poll_count === -1) ? run : poll_count;
     query = (query) ? query : initial_query;
+
+    // On first run, set max requests
+    if (max < 1) {
+        max = run;
+    }
+
     oauth.get(
         base_url + query,
         credentials.token,
@@ -67,7 +72,7 @@ function getTweets(run, query) {
                 query = data.search_metadata.next_results;
 
                 // Get refresh URL if first request
-                if (run === poll_count) {
+                if (run === max) {
                     refresh_url = data.search_metadata.refresh_url;
                     fs.writeFile(next_poll_start_file, refresh_url, function (error) {
                         if (error) {
@@ -88,7 +93,7 @@ function getTweets(run, query) {
 
                 if (query === undefined) {
                     console.info(chalk.blue('Reached end of available tweets'));
-                } else if (!run) {
+                } else if (run === 1) {
                     console.info(chalk.blue('Reached end of requested runs'));
                 } else {
                     getTweets(--run, query);
