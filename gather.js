@@ -16,6 +16,7 @@ var base_url = 'https://api.twitter.com/1.1/search/tweets.json',
         '&lang=fr',
         '&count=100'
     ].join(''),
+    next_poll_start_file = 'next_set.txt',
     pool_file = function (f_nb) {
         return 'pool' + f_nb + '.json';
     },
@@ -25,7 +26,8 @@ var base_url = 'https://api.twitter.com/1.1/search/tweets.json',
     pool_nb = function (reverse_counter) {
         return ("0000" + (poll_count - reverse_counter + 1)).slice(-5)
     },
-    poll_count = 1;
+    // Desired runs is +1
+    poll_count = 10;
 
 // Initialise authorised connection
 var oauth = new OAuth.OAuth(
@@ -45,6 +47,7 @@ var oauth = new OAuth.OAuth(
  * @param str next_query Twitter-returned query to get previous tweets
  */
 function getTweets(run, query) {
+    var refresh_url = '';
     oauth.get(
         base_url + query,
         credentials.token,
@@ -52,21 +55,40 @@ function getTweets(run, query) {
         function responseCallback(error, data, response) {
             var file_nb = pool_nb(run);
             if (error) {
-                console.error(run + ': ' + chalk.red.bgWhite(inspect(error)));
+                console.error(file_nb + ': ' + chalk.red.bgWhite(inspect(error)) + inspect(response));
             } else {
                 // Store raw response
                 writeTweets(data, raw_file(file_nb));
                 data = JSON.parse(data);
+
                 // Get next query (antechronological)
                 query = data.search_metadata.next_results;
+
+                // Get refresh URL if first request
+                if (run === poll_count) {
+                    refresh_url = data.search_metadata.refresh_url;
+                    fs.writeFile(next_poll_start_file, refresh_url, function (error) {
+                        if (error) {
+                            console.warn(chalk.black.bgYellow('Could not stor refresh URL ' + refresh_url));
+                        } else {
+                            console.log(chalk.green('Refresh URL ' + refresh_url + ' stored'));
+                        }
+                    });
+                }
+
                 data = filterData(data);
+
                 // Store relevant data
                 writeTweets(
                     JSON.stringify(data, null, 4),
                     pool_file(file_nb)
                 );
 
-                if (run) {
+                if (query === undefined) {
+                    console.info(chalk.blue('Reached end of available tweets'));
+                } else if (!run) {
+                    console.info(chalk.blue('Reached end of requested runs'));
+                } else {
                     getTweets(--run, query);
                 }
             }
