@@ -27,7 +27,7 @@ var base_url = 'https://api.twitter.com/1.1/search/tweets.json',
         return ("0000" + (poll_count - reverse_counter + 1)).slice(-5)
     },
     // Desired runs is +1
-    poll_count = 10;
+    poll_count = -1;
 
 // Initialise authorised connection
 var oauth = new OAuth.OAuth(
@@ -48,6 +48,8 @@ var oauth = new OAuth.OAuth(
  */
 function getTweets(run, query) {
     var refresh_url = '';
+    poll_count = (poll_count === -1) ? run : poll_count;
+    query = (query) ? query : initial_query;
     oauth.get(
         base_url + query,
         credentials.token,
@@ -135,4 +137,4 @@ function writeTweets(tweets, filename) {
 }
 
 // Run
-getTweets(poll_count, initial_query)
+module.exports = getTweets;
