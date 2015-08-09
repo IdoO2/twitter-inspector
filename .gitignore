@@ -1,2 +1,9 @@
 node_modules
 local-data.js
+
+raw*
+pool*
+next_set.txt
+trained.json
+
+test
