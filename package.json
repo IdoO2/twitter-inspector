@@ -7,7 +7,9 @@
     "chalk": "^1.1.0",
     "oauth": "^0.9.13"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "prompt": "^0.2.14"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
