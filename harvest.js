@@ -1,5 +1,6 @@
 var fs = require('fs');
 var chalk = require('chalk');
+var sqlt = require('sqlite3');
 
 if (!Array.prototype.shuffle) {
     Array.prototype.shuffle = function () {
@@ -130,7 +131,7 @@ function trainingSet(pool, proportion) {
 function train(pool) {
     var trained_set = {'+': [], '-': []};
     var prompt = require('prompt');
-    var more = 15;
+    var more = 5;
     var done = null;
     var schema = {
         properties: {
@@ -191,6 +192,9 @@ function Pool() {
     // Start with a full set
     var working_set = pipeTweets();
 
+    // Open or create database file
+    var db = new sqlt.Database('trained.sqlite');
+
     this.usage = function () {
         console.log('Usage:');
         console.log('var pool = new Pool()');
@@ -218,13 +222,30 @@ function Pool() {
         return train_data;
 
         function saveTrained(data) {
-            var filename = 'trained.json';
-            fs.writeFile(filename, JSON.stringify(data), function (error) {
-                if (error) {
-                    console.error(chalk.red.bgWhite('Could not write `' + filename + '`: ' + inspect(error)));
-                } else {
-                    console.log(chalk.green('`' + filename + '` written'));
-                }
+            /* Saves newly trained data to the database
+             * @param {} data
+             * */
+            var sql_create = [
+                'CREATE TABLE IF NOT EXISTS TRAINED',
+                '(id INT PRIMARY KEY, tweet_id VARCHAR(255), tweet_text VARCHAR(255), polarity VARCHAR(1));'
+            ].join('');
+            var sql_insert = 'INSERT INTO TRAINED (tweet_id, tweet_text, polarity) VALUES (?, ?, ?)';
+            var sql_rows = [];
+
+            return new Promise(function (resolve, reject) {
+                db.run(sql_create, function () {
+                    var stmt = db.prepare(sql_insert);
+
+                    ['+', '-'].forEach(function (pol) {
+                        data[pol].forEach(function (tweet) {
+                            stmt.run('0', tweet, pol);
+                        });
+                    });
+
+                    stmt.finalize();
+                    db.close();
+                    resolve('ok');
+                });
             });
         };
     };

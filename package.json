@@ -5,7 +5,8 @@
   "main": "gather.js",
   "dependencies": {
     "chalk": "^1.1.0",
-    "oauth": "^0.9.13"
+    "oauth": "^0.9.13",
+    "sqlite3": "^3.0.10"
   },
   "devDependencies": {
     "prompt": "^0.2.14"
