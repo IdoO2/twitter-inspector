@@ -37,42 +37,6 @@ function pipeAll() {
     });
 
     return dataPool;
-
-    /*
-        return Promise.all([
-
-        ]);
-
-        (new Promise(function (resolve, reject) {
-            fs.readdir('.', function (err, fileList) {
-                if (err) {
-                    reject(err);
-                } else {
-                    fileList.forEach(function (filename) {
-                        if (pool_regex.test(filename)) {
-
-                        }
-                    });
-                }
-            });
-        }));
-
-        return new Promise(function (resolve, reject) {
-            fs.readdir('.', function (err, fileList) {
-                if (err) {
-                    reject(err);
-                } else {
-                    fileList.forEach(function (filename) {
-                        if (pool_regex.test(filename)) {
-                            fs.readFile(filename, {encoding: 'utf-8'}, function (err, contents) {
-                                dataPool.push(JSON.parse(contents));
-                            });
-                        }
-                    });
-                }
-            });
-        }
-    */
 }
 
 function pipeTweets() {
