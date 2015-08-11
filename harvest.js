@@ -320,6 +320,10 @@ function Pool() {
                         function (word_checks) {
                             var relevant_words_count = 0;
                             var log_sum = word_checks.reduce(function (accumulator, cur_prob) {
+                                // Ignoring words with no occurrence overall increases similarity with a bias:
+                                // similarity is increased more in the case of neutral tweet recognition. Whether
+                                // it is due to the dominance of neutral tweets or endemic isn’t sure. Choice is
+                                // made here to favour stronger discrimination.
                                 if (cur_prob > 0) {
                                     relevant_words_count += 1;
                                 }
