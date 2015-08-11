@@ -1,6 +1,7 @@
 var fs = require('fs');
 var chalk = require('chalk');
 var sqlt = require('sqlite3');
+var Counts = require('./counts');
 
 if (!Array.prototype.shuffle) {
     Array.prototype.shuffle = function () {
@@ -289,62 +290,95 @@ function Pool() {
     this.inspect = function (wordList) {
         /* Determine tweet’s polarity
          * */
-        var likelinesses = {
-            '-': 0,
-            '+': 0
-        };
+
+        // Public interface
+        var resolve_all, reject_all,
+            public_thenable = new Promise(function (resolve, reject) {
+                resolve_all = resolve;
+                reject_all = reject;
+            });
+
         var best_match = {
+            // Will hold the most probable polarity
             label: '',
             likeliness: 0
         };
 
-        ['+', '-'].forEach(function (pol) {
-            var log_sum = 0;
+        var pol_checks_done = [];
 
-            wordList.forEach(function (word) {
-                log_sum += checkWord(word, pol);
-            });
-            likelinesses[pol] = 1 / (1 + Math.exp(log_sum));
+        ['+', '-'].forEach(function (pol) {
+            // Determine probability that tweet is from either polarity,
+            // based on probability of individual words
+            var word_checks_done = [];
+            pol_checks_done.push(
+                new Promise(function (resolve_pol, reject_pol) {
+                    wordList.forEach(function (word) {
+                        word_checks_done.push(checkWord(word, pol));
+                    });
+
+                    Promise.all(word_checks_done).then(
+                        function (word_checks) {
+                            var relevant_words_count = 0;
+                            var log_sum = word_checks.reduce(function (accumulator, cur_prob) {
+                                if (cur_prob > 0) {
+                                    relevant_words_count += 1;
+                                }
+                                return accumulator + cur_prob;
+                            }, 0);
+                            var prob = log_sum / relevant_words_count;
+                            resolve_pol(prob);
+                        },
+                        function (error) {
+                            console.log(chalk.red('error:'), error);
+                        }
+                    );
+                })
+            );
         });
 
-        if (likelinesses['-'] === likelinesses['+']) {
-            return null;
-        }
-
-        best_match.label = (likelinesses['-'] > likelinesses['+']) ? '-' : '+';
-        best_match.score = likelinesses[best_match.label];
-
-        return best_match;
+        return Promise.all(pol_checks_done).then(
+            function (pol_probs) {
+                var sorted_scores;
+                // 0: '+', 1: '-'
+                if (pol_probs[0] === pol_probs[1]) {
+                    console.log('Unable to decide');
+                }
+                best_match.label = (pol_probs[0] > pol_probs[1]) ? '+' : '-';
+                sorted_scores = pol_probs.sort();
+                best_match.likeliness = sorted_scores[1];
+                best_match.vs = sorted_scores[0];
+                return best_match;
+            },
+            function (error) {
+                console.log(chalk.red('error:'), error);
+            }
+        );
 
         function checkWord(word, pol) {
-            /* Determine wordicity of word for polarity
+            /* <thenable> Determine wordicity of word for polarity
              * @param pol A polarity (+/-)
              * @return float
              * */
-            var overall_occurrences = probabilities.perword.all[word];
-            if (!overall_occurrences) {
-                return 0;
-            }
 
-            var p_word, p_not_word, pol_documents, other_pol_documents, all_documents, pol_word_occurrences, other_pol_word_occurrences, word_wordicity;
+            // Word statistics
+            return (new Counts(db, pol, word)).then(
+                function (data) {
+                    if (data === null) {
+                        return 0;
+                    }
+                    // Bayes’s theorem according to Wikipedia (`p_` = 'probability of')
+                    var p_pol = (data.pol_docs / data.all_docs);
+                    var p_not_pol = (data.non_pol_docs / data.all_docs);
+                    var p_word_in_pol = (data.pol_docs_w_word / (data.pol_docs || 1));
 
-            pol_word_occurrences = (probabilities.perword[pol][word] || 0);
-            pol_documents = trained_cnt[pol];
-            other_pol_documents = all_documents - pol_documents;
-            other_pol_word_occurrences = overall_occurrences - pol_word_occurrences;
-
-            p_word = pol_word_occurrences / (pol_documents || 1);
-
-            p_not_word = (!other_pol_documents) ? 0 : other_pol_word_occurrences / other_pol_documents;
-
-            word_wordicity = p_word / (p_word + p_not_word);
-            word_wordicity = (0.5 + overall_occurrences * word_wordicity) / (1 + overall_occurrences);
-
-            // Adjust 0 & 1
-            word_wordicity = word_wordicity || .01;
-            word_wordicity = (word_wordicity < 1) ? word_wordicity : .99;
-
-            return (Math.log(1 - word_wordicity) - Math.log(word_wordicity));
+                    // Probability of word indicating polarity
+                    return (p_pol * p_word_in_pol) / (p_not_pol || 1);
+                },
+                function (error) {
+                    console.log(chalk.red('error:'), error);
+                    return null;
+                }
+            );
         }
     };
 }
