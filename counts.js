@@ -12,6 +12,9 @@ function Counts(db, polarity, word) {
         reject_all = rej;
     });
 
+    // If this i 0, do not continue, hence separation, but publicly needed
+    var all_docs_w_word = 0;
+
     var relevant = new Promise(function (resolve, reject) {
         // Determine if word ever appears in any document
         db.get(
@@ -21,6 +24,7 @@ function Counts(db, polarity, word) {
                 if (err || res.total === 0) {
                     reject('Query unsuccessful (no ' + word + ' found or error: ' + err);
                 } else {
+                    all_docs_w_word = res.total;
                     resolve(res.total);
                 }
             }
@@ -38,6 +42,7 @@ function Counts(db, polarity, word) {
                         // Ok: return stats to caller
                         resolve_all({
                             all_docs: stats[0],
+                            all_docs_w_word: all_docs_w_word,
                             pol_docs: stats[1],
                             non_pol_docs: stats[0] - stats[1],
                             pol_docs_w_word: stats[2]

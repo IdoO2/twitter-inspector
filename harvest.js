@@ -368,11 +368,11 @@ function Pool() {
                     }
                     // Bayes’s theorem according to Wikipedia (`p_` = 'probability of')
                     var p_pol = (data.pol_docs / data.all_docs);
-                    var p_not_pol = (data.non_pol_docs / data.all_docs);
-                    var p_word_in_pol = (data.pol_docs_w_word / (data.pol_docs || 1));
+                    var p_word_given_pol = (data.pol_docs_w_word / (data.pol_docs || 1));
+                    var p_word = (data.all_docs_w_word / data.all_docs);
 
                     // Probability of word indicating polarity
-                    return (p_pol * p_word_in_pol) / (p_not_pol || 1);
+                    return (p_pol * p_word_given_pol) / (p_word || 1);
                 },
                 function (error) {
                     console.log(chalk.red('error:'), error);
