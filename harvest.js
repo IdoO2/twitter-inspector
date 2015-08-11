@@ -21,12 +21,11 @@ if (!Array.prototype.shuffle) {
     }
 }
 
-/**
- * Pipe out all tweets in pool, read from files
- * For now, synchronous version
- * @return array
- */
 function pipeAll() {
+    /* Pipe out all tweets in pool, read from files
+     * For now, synchronous version
+     * @return array
+     * */
     var pool_regex = /^pool/;
     var dataPool = [];
 
@@ -75,12 +74,11 @@ function pipeAll() {
     */
 }
 
-/**
- * Return a list of all tweet texts in pool
- * For now, synchronous version
- * @return array
- */
 function pipeTweets() {
+    /* Return a list of all tweet texts in pool
+     * For now, synchronous version
+     * @return array
+     * */
     var pool_regex = /^pool/;
     var dataPool = [];
 
@@ -100,22 +98,20 @@ function pipeTweets() {
     return dataPool.shuffle();
 }
 
-/**
- * Split a tweet into tokens
- * @return array
- */
 function tokenise(tweet) {
+    /* Split a tweet into tokens
+     * @return array
+     * */
     var separators = /[\s:!?.;,)(/']/g;
     return tweet.toLowerCase().replace(separators, ' ').split(/\s+/);
 }
 
-/**
- * Given a list of tweets, returns an object with a working set and a training set
- * @param array pool List of tweet texts
- * @param int proportion base ten proportion of tweets to assign to training set
- * @return {}
- */
 function trainingSet(pool, proportion) {
+    /* Given a list of tweets, returns an object with a working set and a training set
+     * @param array pool List of tweet texts
+     * @param int proportion base ten proportion of tweets to assign to training set
+     * @return {}
+     * */
     var len = pool.length;
     var start_idx = len * proportion / 10;
     var extract = pool.splice(start_idx, len);
@@ -123,12 +119,11 @@ function trainingSet(pool, proportion) {
     return {test_set: pool, learn_set: extract};
 }
 
-/**
- * Ask user to train set
- * @param array pool List of tweet texts
- * @return array of {}
- */
 function train(pool) {
+    /* Ask user to train set
+     * @param array pool List of tweet texts
+     * @return array of {}
+     * */
     var trained_set = {'+': [], '-': []};
     var prompt = require('prompt');
     var more = 5;
@@ -172,6 +167,7 @@ function Pool() {
 
     // Subset of tweets trained upon
     var training_set;
+
     // Subset of tweets to auto-categorise
     var working_set;
 
