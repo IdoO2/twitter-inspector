@@ -42,7 +42,7 @@ function pipeAll() {
 function pipeTweets() {
     /* Return a list of all tweet texts in pool
      * For now, synchronous version
-     * @return array
+     * @return array of [id, text]
      * */
     var pool_regex = /^pool/;
     var dataPool = [];
@@ -55,7 +55,7 @@ function pipeTweets() {
             full_data = JSON.parse(fs.readFileSync(filename, {encoding: 'utf-8'}));
             dlen = full_data.length;
             for (; i < dlen; i++) {
-                dataPool.push(full_data[i].text);
+                dataPool.push([full_data[i].id, full_data[i].text]);
             }
         }
     });
@@ -113,7 +113,7 @@ function train(pool) {
     function trainNext(tweets) {
         var pol = null;
         var cur = tweets.pop();
-        console.log('\n', chalk.black.bgWhite(cur));
+        console.log('\n', chalk.black.bgWhite(cur[1]));
         prompt.get(schema, function (err, reply) {
             reply = reply.polarity;
             if (reply === '+' || reply === '-') {
@@ -151,7 +151,7 @@ function Pool() {
     };
 
     // Start with a full set
-    var working_set = pipeTweets();
+    working_set = pipeTweets();
 
     // Open or create database file
     var db = new sqlt.Database('trained.sqlite');
@@ -188,7 +188,7 @@ function Pool() {
              * */
             var sql_create = [
                 'CREATE TABLE IF NOT EXISTS TRAINED',
-                '(id INT PRIMARY KEY, tweet_id VARCHAR(255), tweet_text VARCHAR(255), polarity VARCHAR(1));'
+                '(id INT PRIMARY KEY, tweet_id VARCHAR(255) UNIQUE, tweet_text VARCHAR(255), polarity VARCHAR(1));'
             ].join('');
             var sql_insert = 'INSERT INTO TRAINED (tweet_id, tweet_text, polarity) VALUES (?, ?, ?)';
             var sql_rows = [];
@@ -199,7 +199,11 @@ function Pool() {
 
                     ['+', '-'].forEach(function (pol) {
                         data[pol].forEach(function (tweet) {
-                            stmt.run('0', tweet, pol);
+                            stmt.run([tweet[0], tweet[1], pol], function (ret) {
+                                if (ret !== null) {
+                                    console.log('Failed to save tweet', tweet[0]);
+                                }
+                            });
                         });
                     });
 
@@ -225,7 +229,7 @@ function Pool() {
         // Account for all words, see probabilities.perword
         ['-', '+'].forEach(function (pol) {
             trained[pol].forEach(function (tweet) {
-                tokenise(tweet).forEach(function (word, idx, arr) {
+                tokenise(tweet[1]).forEach(function (word) {
                     addWord(word, pol);
                 });
             });
