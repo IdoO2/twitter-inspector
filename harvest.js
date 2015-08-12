@@ -123,6 +123,32 @@ function train(pool) {
     }
 }
 
+function isAcceptable(tweet) {
+    /* Indicates if tweet should be taken into account
+     * to filter out tweets that have mostly unrelevant content
+     * */
+    var mention = /@[^\s]+/g;
+    var hashtag = /#[^\s]+/g;
+    var tweet_length = tweet.length;
+    var half_tweet = tweet_length / 2;
+    var mentions = tweet.match(mention);
+    var hashtags = tweet.match(hashtag);
+
+    // 5 or more mentions or mentions take over 50% of tweet length
+    if (mentions && (mentions.length > 4 || mentions.join(' ').length > half_tweet)) {
+        console.log(tweet, ' excluded, too many mentions');
+        return false;
+    }
+
+    // 8 or more hashtags or hashtags take over 50% of tweet length
+    if (hashtags && (hashtags.length > 7 || hashtags.join(' ').length > half_tweet)) {
+        console.log(tweet, ' excluded, too many hashtags');
+        return false;
+    }
+
+    return true;
+}
+
 function Pool() {
     // Train only once
     var trained = false;
@@ -196,11 +222,13 @@ function Pool() {
 
                     ['+', '-'].forEach(function (pol) {
                         data[pol].forEach(function (tweet) {
-                            stmt.run([tweet[0], tweet[1], pol], function (ret) {
-                                if (ret !== null) {
-                                    console.log('Failed to save tweet', tweet[0]);
-                                }
-                            });
+                            if (isAcceptable(tweet[1])) {
+                                stmt.run([tweet[0], tweet[1], pol], function (ret) {
+                                    if (ret !== null) {
+                                        console.log('Failed to save tweet', tweet[0]);
+                                    }
+                                });
+                            }
                         });
                     });
 
