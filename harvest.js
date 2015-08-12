@@ -91,7 +91,6 @@ function train(pool) {
      * */
     var trained_set = {'+': [], '-': []};
     var prompt = require('prompt');
-    var more = 5;
     var done = null;
     var schema = {
         properties: {
@@ -119,9 +118,7 @@ function train(pool) {
             if (reply === '+' || reply === '-') {
                 trained_set[reply].push(cur);
             }
-            // (tweets.length)
-            more--;
-            return (more) ? trainNext(tweets) : done(trained_set);
+            return (tweets.length) ? trainNext(tweets) : done(trained_set);
         });
     }
 }
@@ -172,8 +169,8 @@ function Pool() {
          */
         if (!trained) {
             var len = working_set.length;
-            var subset = (len * proportion / 10);
-            training_set = working_set.splice(subset, len);
+            var subset = Math.round((len * proportion / 10));
+            training_set = working_set.splice(0, subset);
             trained = true;
         }
 
