@@ -1,4 +1,4 @@
-function Counts(db, polarity, word) {
+function Counts(db, tbl_name, polarity, word) {
     /* Handles relevant db querying for numbers relevant to probabilities
      */
 
@@ -18,7 +18,7 @@ function Counts(db, polarity, word) {
     var relevant = new Promise(function (resolve, reject) {
         // Determine if word ever appears in any document
         db.get(
-            "SELECT count(*) as total FROM trained WHERE tweet_text LIKE ?",
+            "SELECT count(*) as total FROM " + tbl_name + " WHERE tweet_text LIKE ?",
             '% ' + word + ' %',
             function (err, res) {
                 if (err || res.total === 0) {
@@ -67,7 +67,7 @@ function Counts(db, polarity, word) {
          */
         return new Promise(function (resolve, reject) {
             db.get(
-                "SELECT count(*) as total FROM trained;",
+                "SELECT count(*) as total FROM " + tbl_name + ";",
                 function (err, ret) {
                     if (err) {
                         console.log('All docs rejected');
@@ -85,7 +85,7 @@ function Counts(db, polarity, word) {
          */
         return new Promise(function (resolve, reject) {
             db.get(
-                "SELECT count(*) as total FROM trained WHERE polarity = ?",
+                "SELECT count(*) as total FROM " + tbl_name + " WHERE polarity = ?",
                 polarity,
                 function (err, ret) {
                     if (err) {
@@ -104,7 +104,7 @@ function Counts(db, polarity, word) {
          */
         return new Promise(function (resolve, reject) {
             db.get(
-                "SELECT count(*) as total FROM trained WHERE polarity = ? AND tweet_text LIKE ?",
+                "SELECT count(*) as total FROM " + tbl_name + " WHERE polarity = ? AND tweet_text LIKE ?",
                 [polarity, '% ' + word + ' %'],
                 function (err, ret) {
                     if (err) {

@@ -1,6 +1,5 @@
 var fs = require('fs');
 var chalk = require('chalk');
-var sqlt = require('sqlite3');
 var Counts = require('./counts');
 
 if (!Array.prototype.shuffle) {
@@ -177,7 +176,8 @@ function Pool() {
     working_set = pipeTweets();
 
     // Open or create database file
-    var db = new sqlt.Database('trained.sqlite');
+    var db = require('./db').dbcon();
+    var tbl_name = require('./db').table;
 
     this.usage = function () {
         console.log('Usage:');
@@ -210,10 +210,10 @@ function Pool() {
              * @param {} data
              * */
             var sql_create = [
-                'CREATE TABLE IF NOT EXISTS TRAINED',
+                'CREATE TABLE IF NOT EXISTS ' + tbl_name,
                 '(id INT PRIMARY KEY, tweet_id VARCHAR(255) UNIQUE, tweet_text VARCHAR(255), polarity VARCHAR(1));'
             ].join('');
-            var sql_insert = 'INSERT INTO TRAINED (tweet_id, tweet_text, polarity) VALUES (?, ?, ?)';
+            var sql_insert = 'INSERT INTO ' + tbl_name + ' (tweet_id, tweet_text, polarity) VALUES (?, ?, ?)';
             var sql_rows = [];
 
             return new Promise(function (resolve, reject) {
@@ -358,7 +358,7 @@ function Pool() {
              * */
 
             // Word statistics
-            return (new Counts(db, pol, word)).then(
+            return (new Counts(db, tbl_name, pol, word)).then(
                 function (data) {
                     if (data === null) {
                         return 0;
