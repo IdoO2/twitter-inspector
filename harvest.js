@@ -1,6 +1,7 @@
 var fs = require('fs');
 var chalk = require('chalk');
 var Counts = require('./counts');
+var pool_db = require('./tweet-db');
 
 if (!Array.prototype.shuffle) {
     Array.prototype.shuffle = function () {
@@ -85,12 +86,9 @@ function trainingSet(pool, proportion) {
 
 function train(pool) {
     /* Ask user to train set
-     * @param array pool List of tweet texts
-     * @return array of {}
+     * @param array pool List of tweets
      * */
-    var trained_set = {'+': [], '-': []};
     var prompt = require('prompt');
-    var done = null;
     var schema = {
         properties: {
             polarity: {
@@ -100,24 +98,29 @@ function train(pool) {
             }
         }
     };
-
-    prompt.start();
-
-    return new Promise(function (resolve, reject) {
+    var done = null;
+    var p = new Promise(function (resolve, reject) {
         done = resolve;
-        trainNext(pool);
     });
 
+    prompt.start();
+    trainNext(pool);
+
+    return p;
+
     function trainNext(tweets) {
-        var pol = null;
+        // Show a tweet, ask for a polarity, update db
+        // Recursive; resolves
         var cur = tweets.pop();
-        console.log('\n', chalk.black.bgWhite(cur[1]));
-        prompt.get(schema, function (err, reply) {
-            reply = reply.polarity;
-            if (reply === '+' || reply === '-') {
-                trained_set[reply].push(cur);
+
+        console.log('\n', chalk.black.bgWhite(cur.tweet_text));
+        prompt.get(schema, function (error, reply) {
+            if (!error) {
+                reply = reply.polarity;
+                pool_db.update(cur.tweet_id, reply);
             }
-            return (tweets.length) ? trainNext(tweets) : done(trained_set);
+
+            return (tweets.length) ? trainNext(tweets) : done();
         });
     }
 }
@@ -190,60 +193,33 @@ function Pool() {
     };
 
     this.train = function (proportion) {
-        /* Let user train data; set training/working set
-         * @return Promise, see `train`
+        /* Let user train data
+         * @param float (0 < proportion  < 1)
+         * @depends `train`
          */
-        if (!trained) {
-            var len = working_set.length;
-            var subset = Math.round((len * proportion / 10));
-            training_set = working_set.splice(0, subset);
-            trained = true;
-        }
+        pool_db.getUntrained().then(function (tweets) {
+            var tlen = tweets.length;
+            if (!tlen) {
+                console.log('All tweets have been trained!');
+                return;
+            }
 
-        var train_data = train(training_set);
-        train_data.then(saveTrained);
+            // implicit rounding; explicite segfaults...
+            tweets = proportion && tweets.splice(0, (tlen * proportion)) || tweets;
 
-        return train_data;
-
-        function saveTrained(data) {
-            /* Saves newly trained data to the database
-             * @param {} data
-             * */
-            var sql_create = [
-                'CREATE TABLE IF NOT EXISTS ' + tbl_name,
-                '(id INT PRIMARY KEY, tweet_id VARCHAR(255) UNIQUE, tweet_text VARCHAR(255), polarity VARCHAR(1));'
-            ].join('');
-            var sql_insert = 'INSERT INTO ' + tbl_name + ' (tweet_id, tweet_text, polarity) VALUES (?, ?, ?)';
-            var sql_rows = [];
-
-            return new Promise(function (resolve, reject) {
-                db.run(sql_create, function () {
-                    var stmt = db.prepare(sql_insert);
-
-                    ['+', '-'].forEach(function (pol) {
-                        data[pol].forEach(function (tweet) {
-                            if (isAcceptable(tweet[1])) {
-                                stmt.run([tweet[0], tweet[1], pol], function (ret) {
-                                    if (ret !== null) {
-                                        console.log('Failed to save tweet', tweet[0]);
-                                    }
-                                });
-                            }
-                        });
-                    });
-
-                    stmt.finalize();
-                    db.close();
-                    resolve('ok');
-                });
+            train(tweets).then(function (cnt) {
+                console.log('Tweets updated');
+            }).catch(function (error) {
+                console.log('Unable to update tweets', error);
             });
-        };
+        }).catch(function (error) {
+            console.log('Unable to retrieve untrained tweets:', error);
+        });
     };
 
     this.learn = function (trained) {
         /* Set all necessary elements to discriminate a new set
          * */
-
         // Document facts
         trained_cnt['-'] = trained['-'].length;
         trained_cnt['+'] = trained['+'].length;
