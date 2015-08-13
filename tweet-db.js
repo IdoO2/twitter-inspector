@@ -181,7 +181,9 @@ function update(tweet_id, polarity) {
 
 module.exports = {
     saveAll: saveAll,
-    Counts: Counts,
+    Counts: function (polarity, word) {
+        return new Counts(db.con, db.tbls.training, polarity, word);
+    },
     getUntrained: function () {
         return getSet('training', '');
     },

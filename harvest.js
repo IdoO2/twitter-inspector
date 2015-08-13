@@ -1,6 +1,5 @@
 var fs = require('fs');
 var chalk = require('chalk');
-var Counts = require('./counts');
 var pool_db = require('./tweet-db');
 
 if (!Array.prototype.shuffle) {
@@ -334,7 +333,7 @@ function Pool() {
              * */
 
             // Word statistics
-            return (new Counts(db, tbl_name, pol, word)).then(
+            return (pool_db.Counts(pol, word)).then(
                 function (data) {
                     if (data === null) {
                         return 0;
