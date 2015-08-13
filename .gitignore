@@ -6,5 +6,4 @@ pool*
 next_set.txt
 trained.json
 
-test
 trained.sqlite
