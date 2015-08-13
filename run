@@ -1,6 +1,6 @@
 #!/bin/node
 
-var gather = require('./gather');
+var gather = require('./gather').fetchTweets;
 
 var run_counts = 4;
 

@@ -1,3 +1,9 @@
+/**
+ * Network and filesystem module
+ * Fetch tweets from Twitter
+ * Read tweets from working directory
+ */
+
 // Librairies
 var OAuth = require('oauth'),
     chalk = require('chalk'),
@@ -158,5 +164,50 @@ function writeTweets(tweets, filename) {
     });
 }
 
+/**
+ * Pipe out all tweets in pool, read from files
+ * @return array
+ */
+function pipeAll() {
+    var pool_regex = /^pool/;
+    var dataPool = [];
+
+    fs.readdirSync('.').forEach(function (filename) {
+        if (pool_regex.test(filename)) {
+            dataPool = dataPool.concat(JSON.parse(fs.readFileSync(filename, {encoding: 'utf-8'})));
+        }
+    });
+
+    return dataPool;
+}
+
+/**
+ * Return a list of all tweet texts in pool
+ * @return array of [id, text]
+ */
+function pipeTweets() {
+    var pool_regex = /^pool/;
+    var dataPool = [];
+
+    fs.readdirSync('.').forEach(function (filename) {
+        var full_data;
+        var dlen = 0;
+        var i = 0;
+        if (pool_regex.test(filename)) {
+            full_data = JSON.parse(fs.readFileSync(filename, {encoding: 'utf-8'}));
+            dlen = full_data.length;
+            for (; i < dlen; i++) {
+                dataPool.push([full_data[i].id, full_data[i].text]);
+            }
+        }
+    });
+
+    // return dataPool.shuffle();
+    return dataPool;
+}
+
 // Run
-module.exports = getTweets;
+module.exports = {
+    fetchTweets: getTweets,
+    getPool: pipeTweets
+};
