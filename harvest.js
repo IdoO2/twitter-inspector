@@ -8,6 +8,7 @@
 
 var chalk = require('chalk');
 var pool_db = require('./tweet-db');
+var prompt = require('prompt');
 
 if (!Array.prototype.shuffle) {
     Array.prototype.shuffle = function () {
@@ -40,7 +41,6 @@ function train(pool) {
     /* Ask user to train set
      * @param array pool List of tweets
      * */
-    var prompt = require('prompt');
     var schema = {
         properties: {
             polarity: {
@@ -79,7 +79,7 @@ function train(pool) {
 
 function isAcceptable(tweet) {
     /* Indicates if tweet should be taken into account
-     * to filter out tweets that have mostly unrelevant content
+     * to filter out tweets that have mostly irrelevant content
      * */
     var mention = /@[^\s]+/g;
     var hashtag = /#[^\s]+/g;
@@ -126,8 +126,7 @@ function Pool() {
                 return;
             }
 
-            // implicit rounding; explicite segfaults...
-            tweets = proportion && tweets.splice(0, (tlen * proportion)) || tweets;
+            tweets = proportion && tweets.splice(0, (Math.round(tlen * proportion))) || tweets;
 
             train(tweets).then(function (cnt) {
                 console.log('Tweets updated');
