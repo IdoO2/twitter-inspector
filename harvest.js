@@ -139,7 +139,7 @@ function Pool() {
         });
     };
 
-    this.inspect = function (wordList) {
+    this.inspect = function (tweet_text) {
         /* Determine tweet’s polarity
          * */
         // Public interface

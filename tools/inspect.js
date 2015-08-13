@@ -11,7 +11,7 @@ db.getWorkingSet().then(function (q) {
     // Run all inspections
     var tweets = q.splice((Math.ceil(Math.random() * q.length)), 10);
     tweets.forEach(function (t) {
-        inspects.push(inspector.inspect(t.tweet_text.split(' '))); // Use tokenise
+        inspects.push(inspector.inspect(t.tweet_text));
     });
     return tweets;
 }).catch(function (error) {
