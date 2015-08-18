@@ -49,7 +49,12 @@ function saveAll() {
 
                 // Resolve file read when all inserted
                 Promise.all(saved).then(function () {
-                    resolve();
+                    cleanDb().then(function () {
+                        resolve();
+                    }, function () {
+                        console.log('Unable to clean database')
+                        resolve();
+                    });
                 }).catch(function (error) {
                     console.log('Error while saving tweets from ' + filename, error);
                 });
@@ -62,6 +67,21 @@ function saveAll() {
         stmt.finalize();
     }).catch(function (error) {
         console.log('Error reading files');
+    });
+}
+
+function cleanDb() {
+    sql_drop = 'DELETE FROM working_set WHERE tweet_id in (SELECT tweet_id FROM working_set WHERE EXISTS (SELECT 1 FROM training_set WHERE working_set.tweet_id = training_set.tweet_id));';
+
+    return new Promise(function (resolve, reject) {
+        db.con.run(sql_drop, function (error) {
+            if (error) {
+                console.log('Couldn’t drop elements', error);
+                reject();
+            } else {
+                resolve();
+            }
+        });
     });
 }
 
