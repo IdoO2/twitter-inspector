@@ -2,7 +2,7 @@
 
 var gather = require('./gather').fetchTweets;
 
-var run_counts = 4;
+var run_counts = 60;
 
 if (process.argv.length > 2) {
     run_counts = process.argv[2];
