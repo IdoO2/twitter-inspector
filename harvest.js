@@ -33,8 +33,9 @@ function tokenise(tweet) {
     /* Split a tweet into tokens
      * @return array
      * */
-    var separators = /[\s:!?.;,)(/']/g;
-    return tweet.toLowerCase().replace(separators, ' ').split(/\s+/);
+    return tweet.toLowerCase().match(/[:;.,?!\s]+|[^;:.,?!\s]+/g).map(function (tok) {
+        return tok.replace(/[\s+#@]/, '');
+    }).filter(Boolean);
 }
 
 function train(pool) {
@@ -85,6 +86,7 @@ function isAcceptable(tweet) {
     var hashtag = /#[^\s]+/g;
     var tweet_length = tweet.length;
     var half_tweet = tweet_length / 2;
+    var most_tweet = Math.ceil((tweet_length * 3) / 5);
     var mentions = tweet.match(mention);
     var hashtags = tweet.match(hashtag);
 
@@ -100,6 +102,27 @@ function isAcceptable(tweet) {
         return false;
     }
 
+    if (mentions && hashtags && mentions.concat(hashtags).join('').length > most_tweet) {
+        console.log(tweet, ' excluded, too many hashtags and mentions');
+        return false;
+    }
+
+    return true;
+}
+
+function cleanTweetText(tweet) {
+    return tweet
+        .replace(/\\n/, ' ')
+        .replace(/'/, '’')
+        .toLowerCase();
+}
+
+function cleanTweetElements(current, index, array) {
+    var seeked_hashtag = /r.gionales2015/gi;
+    var mention = /@[^ ]+/g;
+    if (current.match(seeked_hashtag)) {
+        return false;
+    }
     return true;
 }
 
@@ -126,7 +149,8 @@ function Pool() {
                 return;
             }
 
-            tweets = proportion && tweets.splice(0, (Math.round(tlen * proportion))) || tweets;
+            proportion = Math.max((Math.round(tlen * proportion)), 10);
+            tweets = proportion && tweets.splice(0, proportion) || tweets;
 
             train(tweets).then(function (cnt) {
                 console.log('Tweets updated');
@@ -154,8 +178,16 @@ function Pool() {
             vs: 0
         };
 
-        var pol_checks_done = [];
+        if (!isAcceptable(tweet_text)) {
+            console.log('Tweet irrelevant')
+            reject_all();
+        }
 
+        tweet_text = cleanTweetText(tweet_text);
+        var wordList = tokenise(tweet_text);
+        wordList = wordList.filter(cleanTweetElements);
+
+        var pol_checks_done = [];
         ['+', '-'].forEach(function (pol) {
             // Determine probability that tweet is from either polarity,
             // based on probability of individual words
@@ -220,7 +252,8 @@ function Pool() {
                     var p_word = (data.all_docs_w_word / data.all_docs);
 
                     // Probability of word indicating polarity
-                    return (p_pol * p_word_given_pol) / (p_word || 1);
+                    var probability = (p_pol * p_word_given_pol) / (p_word || 1);
+                    return probability;
                 },
                 function (error) {
                     console.log(chalk.red('error:'), error);
