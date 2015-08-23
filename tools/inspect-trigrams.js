@@ -9,11 +9,10 @@ var inspects = [];
 
 db.getWorkingSet().then(function (q) {
     // Run all inspections
-    var tweets = q;
-    tweets.forEach(function (t) {
-        inspects.push(inspector.inspect(t.tweet_text));
+    q.forEach(function (t) {
+        inspects.push(inspector.inspect_trigrams(t.tweet_text));
     });
-    return tweets;
+    return q;
 }).catch(function (error) {
     console.log('Failed:', error);
 }).then(function (tweets) {
@@ -30,12 +29,15 @@ db.getWorkingSet().then(function (q) {
 
         l = Math.max(in_len, out_len);
 
+        var k = 0
         for (; i < l; i++) {
-            show = (guesses[i].label === '+') ? chalk.white.bgBlue : chalk.black.bgWhite;
-            console.log(show(tweets[i].tweet_text));
-            // console.log('Certainty:', (100 - (guesses[i].vs * 100) / guesses[i].likeliness), '%');
-            // console.log(guesses[i].likeliness, 'vs', guesses[i].vs);
-            console.log('');
+            if (guesses[i].label === '+') {
+                k++;
+                show = chalk.white.bgBlue;
+                console.log(show(tweets[i].tweet_text));
+                console.log(guesses[i].likeliness, 'vs', guesses[i].vs);
+            }
+            console.log('total: ' + l, 'ironic: ' + k)
         }
     }, function (error) {
         console.log(error);

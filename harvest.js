@@ -19,7 +19,6 @@ if (!Array.prototype.shuffle) {
         while (len) {
             rnd_idx = Math.floor(Math.random() * len);
             len--;
-            // [this[len], this[rnd_idx]] = [this[rnd_idx], this[len]];
             tmp = this[len];
             this[len] = this[rnd_idx];
             this[rnd_idx] = tmp;
@@ -36,6 +35,31 @@ function tokenise(tweet) {
     return tweet.toLowerCase().match(/[:;.,?!\s]+|[^;:.,?!\s]+/g).map(function (tok) {
         return tok.replace(/[\s+#@]/, '');
     }).filter(Boolean);
+}
+
+function tokenise_trigrams(tweet) {
+    /**
+     * Split tweet into tokens: each token is a trigram where the central part is not taken into account
+     * @param string tweet
+     * @return [[], [], ..., []]
+     */
+    var units = tokenise(tweet).filter(cleanTweetElements),
+        tgs = [],
+        ulen = units.length,
+        i = 0;
+
+    for (; i < ulen - 1; i++) {
+        if (i === ulen -2) {
+            tgs.push([units[i], '[^ ]+', 1])
+        } else if (i === 0) {
+            tgs.push([0, '[^ ]+', units[1]])
+            tgs.push([units[0], '[^ ]+', units[2]])
+        } else {
+            tgs.push([units[i], '[^ ]+', units[i + 2]])
+        }
+    }
+
+    return tgs;
 }
 
 function train(pool) {
@@ -92,18 +116,15 @@ function isAcceptable(tweet) {
 
     // 5 or more mentions or mentions take over 50% of tweet length
     if (mentions && (mentions.length > 4 || mentions.join(' ').length > half_tweet)) {
-        console.log(tweet, ' excluded, too many mentions');
         return false;
     }
 
     // 8 or more hashtags or hashtags take over 50% of tweet length
     if (hashtags && (hashtags.length > 7 || hashtags.join(' ').length > half_tweet)) {
-        console.log(tweet, ' excluded, too many hashtags');
         return false;
     }
 
     if (mentions && hashtags && mentions.concat(hashtags).join('').length > most_tweet) {
-        console.log(tweet, ' excluded, too many hashtags and mentions');
         return false;
     }
 
@@ -246,6 +267,106 @@ function Pool() {
                     if (data === null) {
                         return 0;
                     }
+                    // Bayes’s theorem according to Wikipedia (`p_` = 'probability of')
+                    var p_pol = (data.pol_docs / data.all_docs);
+                    var p_word_given_pol = (data.pol_docs_w_word / (data.pol_docs || 1));
+                    var p_word = (data.all_docs_w_word / data.all_docs);
+
+                    // Probability of word indicating polarity
+                    var probability = (p_pol * p_word_given_pol) / (p_word || 1);
+                    return probability;
+                },
+                function (error) {
+                    console.log(chalk.red('error:'), error);
+                    return null;
+                }
+            );
+        }
+    };
+
+    this.inspect_trigrams = function (tweet_text) {
+        /* Determine tweet’s polarity
+         * */
+        // Public interface
+        var resolve_all, reject_all, public_thenable = new Promise(function (resolve, reject) {
+            resolve_all = resolve;
+            reject_all = reject;
+        });
+
+        var best_match = {
+            // Will hold the most probable polarity: label, likeliness, inverse likeliness
+            label: '',
+            likeliness: 0,
+            vs: 0
+        };
+
+        if (!isAcceptable(tweet_text)) {
+            reject_all();
+        }
+
+        tweet_text = cleanTweetText(tweet_text);
+        var wordList = tokenise_trigrams(tweet_text);
+
+        var pol_checks_done = [];
+        ['+', '-'].forEach(function (pol) {
+            // Determine probability that tweet is from either polarity,
+            // based on probability of individual words
+            var word_checks_done = [];
+            pol_checks_done.push(
+                new Promise(function (resolve_pol, reject_pol) {
+                    wordList.forEach(function (trigram) {
+                        word_checks_done.push(checkWord(trigram, pol));
+                    });
+
+                    Promise.all(word_checks_done).then(function (word_checks) {
+                        var relevant_words_count = 0;
+                        var probability_sum = word_checks.reduce(function (accumulator, cur_prob) {
+                            // Ignoring words with no occurrence overall increases similarity with a bias:
+                            // similarity is increased more in the case of neutral tweet recognition. Whether
+                            // it is due to the dominance of neutral tweets or endemic isn’t sure. Choice is
+                            // made here to favour stronger discrimination.
+                            if (cur_prob > 0) {
+                                relevant_words_count += 1;
+                            }
+                            return accumulator + cur_prob;
+                        }, 0);
+                        var prob = probability_sum / (relevant_words_count || 1);
+                        resolve_pol(prob);
+                    }).catch(function (error) {
+                        console.log(error);
+                    });
+                })
+            );
+        });
+
+        return Promise.all(pol_checks_done).then(function (pol_probs) {
+            var sorted_scores;
+            // 0: '+', 1: '-'
+            if (pol_probs[0] === pol_probs[1]) {
+                console.log('Unable to decide');
+            }
+            best_match.label = (pol_probs[0] > pol_probs[1]) ? '+' : '-';
+            sorted_scores = pol_probs.sort();
+            best_match.likeliness = sorted_scores[1];
+            best_match.vs = sorted_scores[0];
+            return best_match;
+        }).catch(function (error) {
+            console.log(error);
+        });
+
+        function checkWord(trigram, pol) {
+            /* <thenable> Determine wordicity of word for polarity
+             * @param pol A polarity (+/-)
+             * @return float
+             * */
+
+            // Word statistics
+            return (pool_db.CountsTrigram(pol, trigram)).then(
+                function (data) {
+                    if (data === null) {
+                        return 0;
+                    }
+                    console.log(data)
                     // Bayes’s theorem according to Wikipedia (`p_` = 'probability of')
                     var p_pol = (data.pol_docs / data.all_docs);
                     var p_word_given_pol = (data.pol_docs_w_word / (data.pol_docs || 1));

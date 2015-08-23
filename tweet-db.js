@@ -5,6 +5,7 @@ var readdirSync = require('fs').readdirSync;
 var sqlt = require('sqlite3');
 
 var Counts = require('./counts');
+var CountsTrigram = require('./counts-trigram');
 
 var db = {
     // Connection, table names dict
@@ -203,6 +204,9 @@ module.exports = {
     saveAll: saveAll,
     Counts: function (polarity, word) {
         return new Counts(db.con, db.tbls.training, polarity, word);
+    },
+    CountsTrigram: function (polarity, trigram) {
+        return new CountsTrigram(db.con, db.tbls.training, polarity, trigram);
     },
     getUntrained: function () {
         return getSet('training', '');
